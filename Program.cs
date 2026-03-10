@@ -90,7 +90,7 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
+    app.UseSwagger();dotne
     app.UseSwaggerUI();
 }
 

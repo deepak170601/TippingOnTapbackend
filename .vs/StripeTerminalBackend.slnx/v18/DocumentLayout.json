@@ -126,8 +126,7 @@
               "RelativeToolTip": "Controllers\\StripeController.cs",
               "ViewState": "AgIAAEIAAAAAAAAAAAAQwGIAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-26T16:14:05.147Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-26T16:14:05.147Z"
             },
             {
               "$type": "Document",
@@ -149,7 +148,7 @@
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "C:\\Users\\deepa\\Desktop\\PaymentApp\\StripeTerminalBackend\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAEgAAAAAAAAAAAAAAFwAAAAVAAAAAAAAAA==",
+              "ViewState": "AgIAAEgAAAAAAAAAAAAAAFwAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-02-26T16:13:20.16Z",
               "EditorCaption": ""
