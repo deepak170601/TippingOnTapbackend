@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Stripe;
 using Stripe.Terminal;
+using StripeTerminalBackend.Services;
 
 namespace StripeTerminalBackend.Controllers;
 
@@ -11,10 +13,12 @@ namespace StripeTerminalBackend.Controllers;
 public class StripeController : ControllerBase
 {
     private readonly ILogger<StripeController> _logger;
+    private readonly TipService _tips;
 
-    public StripeController(ILogger<StripeController> logger)
+    public StripeController(ILogger<StripeController> logger, TipService tips)
     {
         _logger = logger;
+        _tips = tips;
     }
 
     [HttpPost("connection_token")]
@@ -22,7 +26,6 @@ public class StripeController : ControllerBase
     {
         var service = new ConnectionTokenService();
         var token = await service.CreateAsync(new ConnectionTokenCreateOptions());
-
         _logger.LogInformation("Connection token created.");
         return Ok(new { secret = token.Secret });
     }
@@ -63,37 +66,29 @@ public class StripeController : ControllerBase
     }
 
     [HttpPost("capture_payment_intent")]
-    public async Task<IActionResult> CapturePaymentIntent([FromBody] PaymentIntentActionRequest request)
+    public async Task<IActionResult> CapturePaymentIntent([FromBody] CapturePaymentRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.PaymentIntentId))
             return BadRequest(new { message = "paymentIntentId is required." });
+
+        if (string.IsNullOrWhiteSpace(request.EventId))
+            return BadRequest(new { message = "eventId is required." });
 
         var service = new PaymentIntentService();
         var intent = await service.CaptureAsync(request.PaymentIntentId);
 
-        _logger.LogInformation("PaymentIntent {Id} captured. Status: {Status}.",
-            intent.Id, intent.Status);
+        // ── Record the tip immediately after successful capture ───────────
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        await _tips.RecordTipAsync(userId, new(
+            EventId: request.EventId,
+            Amount: intent.Amount,
+            PaymentIntentId: intent.Id
+        ));
 
-        return Ok(new
-        {
-            id = intent.Id,
-            amount = intent.Amount,
-            status = intent.Status,
-        });
-    }
+        _logger.LogInformation(
+            "PaymentIntent {Id} captured and tip recorded. Amount: {Amount}.",
+            intent.Id, intent.Amount);
 
-    [HttpPost("cancel_payment_intent")]
-    public async Task<IActionResult> CancelPaymentIntent([FromBody] PaymentIntentActionRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.PaymentIntentId))
-            return BadRequest(new { message = "paymentIntentId is required." });
-
-        var service = new PaymentIntentService();
-        var intent = await service.CancelAsync(request.PaymentIntentId);
-
-        _logger.LogInformation("PaymentIntent {Id} cancelled. Status: {Status}.",
-            intent.Id, intent.Status);
-
-        return Ok(new { id = intent.Id, status = intent.Status });
+        return Ok(new { id = intent.Id, amount = intent.Amount, status = intent.Status });
     }
 }

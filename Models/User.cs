@@ -10,19 +10,64 @@ public class User
     [Column("id")]
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
+    // ── Name ──────────────────────────────────────────────────
     [Required]
+    [Column("first_name")]
+    [MaxLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required]
+    [Column("last_name")]
+    [MaxLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
     [Column("full_name")]
     [MaxLength(255)]
-    public string FullName { get; set; } = string.Empty;
+    public string FullName => $"{FirstName} {LastName}";
+
+    // ── Contact ───────────────────────────────────────────────
+    [Required]
+    [Column("phone_number")]
+    [MaxLength(20)]
+    public string PhoneNumber { get; set; } = string.Empty;
 
     [Required]
     [Column("email")]
     [MaxLength(255)]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
-    [Column("password_hash")]
-    public string PasswordHash { get; set; } = string.Empty;
+    [Column("is_email_verified")]
+    public bool IsEmailVerified { get; set; } = false;
+
+    // ── Business (optional) ───────────────────────────────────
+    [Column("company_name")]
+    [MaxLength(255)]
+    public string? CompanyName { get; set; }
+
+    [Column("ein")]
+    [MaxLength(20)]
+    public string? Ein { get; set; }
+
+    // ── Address ───────────────────────────────────────────────
+    [Column("address1")]
+    [MaxLength(255)]
+    public string Address1 { get; set; } = string.Empty;
+
+    [Column("address2")]
+    [MaxLength(255)]
+    public string? Address2 { get; set; }
+
+    [Column("city")]
+    [MaxLength(100)]
+    public string City { get; set; } = string.Empty;
+
+    [Column("state")]
+    [MaxLength(2)]
+    public string State { get; set; } = string.Empty;
+
+    [Column("zip")]
+    [MaxLength(10)]
+    public string Zip { get; set; } = string.Empty;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

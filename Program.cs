@@ -17,7 +17,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<UserService>();
-
+builder.Services.AddScoped<StripeTerminalBackend.Services.EventService>();
+builder.Services.AddScoped<TipService>();
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key is missing.");
 
@@ -77,7 +78,8 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddScoped<OtpService>();
+builder.Services.AddScoped<UserService>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -88,9 +90,28 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
+// ── Request/Response logging ───────────────────────────────
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"→ {context.Request.Method} {context.Request.Path} | Auth: {context.Request.Headers["Authorization"].FirstOrDefault()?.Substring(0, Math.Min(30, context.Request.Headers["Authorization"].FirstOrDefault()?.Length ?? 0))}...");
+
+    if (context.Request.ContentLength > 0)
+    {
+        context.Request.EnableBuffering();
+        var body = await new StreamReader(context.Request.Body).ReadToEndAsync();
+        context.Request.Body.Position = 0;
+        Console.WriteLine($"  Body: {body}");
+    }
+
+    await next();
+
+    Console.WriteLine($"← {context.Response.StatusCode} {context.Request.Path}");
+});
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();dotne
+    app.UseSwagger();
     app.UseSwaggerUI();
 }
 

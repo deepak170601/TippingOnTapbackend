@@ -5,26 +5,48 @@ using System.Security.Cryptography;
 
 namespace StripeTerminalBackend.Services;
 
+public record RegisterUserRequest(
+    string PhoneNumber,
+    string FirstName,
+    string LastName,
+    string Email,
+    string Address1,
+    string City,
+    string State,
+    string Zip,
+    string? Address2 = null,
+    string? CompanyName = null,
+    string? Ein = null
+);
+
 public class UserService
 {
     private readonly AppDbContext _db;
+    public UserService(AppDbContext db) => _db = db;
 
-    public UserService(AppDbContext db)
+    public async Task<User?> CreateUserAsync(RegisterUserRequest req)
     {
-        _db = db;
-    }
+        bool phoneExists = await _db.Users.AnyAsync(u => u.PhoneNumber == req.PhoneNumber);
+        if (phoneExists) { return null; }
 
-    public async Task<User?> CreateUserAsync(string fullName, string email, string plainPassword)
-    {
-        bool exists = await _db.Users.AnyAsync(u => u.Email == email);
-        if (exists) return null;
+        bool emailExists = await _db.Users.AnyAsync(u => u.Email == req.Email.ToLowerInvariant());
+        if (emailExists) { return null; }
 
         var user = new User
         {
             Id = Guid.NewGuid().ToString(),
-            FullName = fullName,
-            Email = email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainPassword),
+            PhoneNumber = req.PhoneNumber.Trim(),
+            FirstName = req.FirstName.Trim(),
+            LastName = req.LastName.Trim(),
+            Email = req.Email.ToLowerInvariant().Trim(),
+            IsEmailVerified = true, // already verified via OTP before registration
+            Address1 = req.Address1.Trim(),
+            Address2 = req.Address2?.Trim(),
+            City = req.City.Trim(),
+            State = req.State.Trim().ToUpper(),
+            Zip = req.Zip.Trim(),
+            CompanyName = req.CompanyName?.Trim(),
+            Ein = req.Ein?.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -33,24 +55,19 @@ public class UserService
         return user;
     }
 
-    public async Task<User?> ValidateUserAsync(string email, string plainPassword)
-    {
-        var user = await _db.Users
+    // ── Find by phone (for login + register check) ────────────
+    public async Task<User?> FindByPhoneAsync(string phoneNumber)
+        => await _db.Users
             .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber.Trim());
 
-        if (user == null) return null;
-        return BCrypt.Net.BCrypt.Verify(plainPassword, user.PasswordHash) ? user : null;
-    }
-
+    // ── Refresh token methods — unchanged ─────────────────────
     public async Task<RefreshToken> CreateRefreshTokenAsync(string userId)
     {
         var existing = await _db.RefreshTokens
             .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
             .ToListAsync();
-
-        foreach (var old in existing)
-            old.RevokedAt = DateTime.UtcNow;
+        foreach (var old in existing) { old.RevokedAt = DateTime.UtcNow; }
 
         var token = new RefreshToken
         {
@@ -66,15 +83,13 @@ public class UserService
         return token;
     }
 
-    public async Task<(User? user, RefreshToken? newToken)> RotateRefreshTokenAsync(
-        string tokenString)
+    public async Task<(User? user, RefreshToken? newToken)> RotateRefreshTokenAsync(string tokenString)
     {
         var token = await _db.RefreshTokens
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == tokenString);
 
-        if (token == null || !token.IsValid)
-            return (null, null);
+        if (token == null || !token.IsValid) { return (null, null); }
 
         token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -87,17 +102,12 @@ public class UserService
     {
         var token = await _db.RefreshTokens
             .FirstOrDefaultAsync(rt => rt.Token == tokenString);
-
-        if (token == null || token.IsRevoked) return false;
-
+        if (token == null || token.IsRevoked) { return false; }
         token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return true;
     }
 
     private static string GenerateSecureToken()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(64);
-        return Convert.ToBase64String(bytes);
-    }
+        => Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
 }
