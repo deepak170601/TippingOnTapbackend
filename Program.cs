@@ -80,6 +80,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<OtpService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<StripeConnectService>();
+// TODO: SendGrid removed — restore in Goal 11
+// builder.Services.AddSingleton(new SendGridClient(
+//     builder.Configuration["SendGrid:ApiKey"]));
+
+// OTP — using mock sender until client provides real OTP provider (see Goal 11)
+builder.Services.AddScoped<IOtpSender, MockOtpSender>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -115,7 +122,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseCors("AllowMobileApp");
 app.UseAuthentication();

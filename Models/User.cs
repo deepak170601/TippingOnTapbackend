@@ -69,6 +69,21 @@ public class User
     [MaxLength(10)]
     public string Zip { get; set; } = string.Empty;
 
+
+    // ── Stripe Connect fields — added Goal 1 ──────────────────
+    [Column("stripe_account_id")]
+    [MaxLength(255)]
+    public string? StripeAccountId { get; set; }        // e.g. acct_xxxxx — null until account created
+
+    [Column("onboarding_complete")]
+    public bool OnboardingComplete { get; set; } = false; // true when charges + payouts both enabled
+
+    [Column("charges_enabled")]
+    public bool ChargesEnabled { get; set; } = false;     // mirrors Stripe account.charges_enabled
+
+    [Column("payouts_enabled")]
+    public bool PayoutsEnabled { get; set; } = false;     // mirrors Stripe account.payouts_enabled
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

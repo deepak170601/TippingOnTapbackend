@@ -1,4 +1,11 @@
 namespace StripeTerminalBackend.Controllers;
 
-public record CreatePaymentRequest(long Amount, string? Currency, string? Description);
-public record PaymentIntentActionRequest(string PaymentIntentId);
+// ── Payment request DTOs ──────────────────────────────────────
+public record CreatePaymentRequest(
+    long Amount,
+    string EventId,
+    string? Currency = null,
+    string? Description = null
+);
+
+public record CapturePaymentRequest(string PaymentIntentId, string EventId);

@@ -9,6 +9,6 @@
     "\\Properties",
     "\\Services"
   ],
-  "SelectedNode": "\\Migrations",
+  "SelectedNode": "\\Controllers\\AuthController.cs",
   "PreviewInSolutionExplorer": false
 }

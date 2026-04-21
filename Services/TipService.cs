@@ -33,7 +33,7 @@ public class TipService
 
     public TipService(AppDbContext db) => _db = db;
 
-    // ── Record tip ────────────────────────────────────────────
+    // ── Record tip ────────────────────────────────────────────────
     public async Task<Tip> RecordTipAsync(string userId, RecordTipRequest req)
     {
         var ev = await _db.Events.FindAsync(req.EventId)
@@ -53,7 +53,9 @@ public class TipService
             PaymentIntentId = req.PaymentIntentId,
         };
 
-        // Atomically update denormalised counters
+        // NOTE: The 5% platform commission is enforced by Stripe via
+        // ApplicationFeeAmount on the PaymentIntent (StripeController — Goal 4).
+        // TotalAmount and TipsCollected are display counters only, not financial records.
         ev.TipsCollected++;
         ev.TotalAmount += req.Amount;
 

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+de402c56ae9f8392e281989e9b8391c2350d0749")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f1ee35c3c576cb7c3ba50a517586a7f6293fff8f")]
 [assembly: System.Reflection.AssemblyProductAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

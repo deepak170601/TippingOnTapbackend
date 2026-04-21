@@ -22,15 +22,27 @@ public record RegisterUserRequest(
 public class UserService
 {
     private readonly AppDbContext _db;
-    public UserService(AppDbContext db) => _db = db;
+    private readonly StripeConnectService _stripeConnect;
+    private readonly ILogger<UserService> _logger;
+
+    public UserService(
+        AppDbContext db,
+        StripeConnectService stripeConnect,
+        ILogger<UserService> logger)
+    {
+        _db = db;
+        _stripeConnect = stripeConnect;
+        _logger = logger;
+    }
 
     public async Task<User?> CreateUserAsync(RegisterUserRequest req)
     {
-        bool phoneExists = await _db.Users.AnyAsync(u => u.PhoneNumber == req.PhoneNumber);
-        if (phoneExists) { return null; }
+        bool phoneExists = await _db.Users.AnyAsync(u => u.PhoneNumber == req.PhoneNumber.Trim());
+        if (phoneExists) return null;
 
-        bool emailExists = await _db.Users.AnyAsync(u => u.Email == req.Email.ToLowerInvariant());
-        if (emailExists) { return null; }
+        string email = req.Email.Trim().ToLowerInvariant();
+        bool emailExists = await _db.Users.AnyAsync(u => u.Email == email);
+        if (emailExists) return null;
 
         var user = new User
         {
@@ -38,12 +50,12 @@ public class UserService
             PhoneNumber = req.PhoneNumber.Trim(),
             FirstName = req.FirstName.Trim(),
             LastName = req.LastName.Trim(),
-            Email = req.Email.ToLowerInvariant().Trim(),
-            IsEmailVerified = true, // already verified via OTP before registration
+            Email = email,
+            IsEmailVerified = true,
             Address1 = req.Address1.Trim(),
             Address2 = req.Address2?.Trim(),
             City = req.City.Trim(),
-            State = req.State.Trim().ToUpper(),
+            State = req.State.Trim().ToUpperInvariant(),
             Zip = req.Zip.Trim(),
             CompanyName = req.CompanyName?.Trim(),
             Ein = req.Ein?.Trim(),
@@ -52,22 +64,36 @@ public class UserService
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+
+        try
+        {
+            await _stripeConnect.CreateConnectedAccountAsync(user.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to auto-create Stripe connected account for user {UserId}. Will be created on first /connect/onboard call.",
+                user.Id);
+        }
+
         return user;
     }
 
-    // ── Find by phone (for login + register check) ────────────
     public async Task<User?> FindByPhoneAsync(string phoneNumber)
         => await _db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber.Trim());
 
-    // ── Refresh token methods — unchanged ─────────────────────
     public async Task<RefreshToken> CreateRefreshTokenAsync(string userId)
     {
         var existing = await _db.RefreshTokens
             .Where(rt => rt.UserId == userId && rt.RevokedAt == null)
             .ToListAsync();
-        foreach (var old in existing) { old.RevokedAt = DateTime.UtcNow; }
+
+        foreach (var old in existing)
+        {
+            old.RevokedAt = DateTime.UtcNow;
+        }
 
         var token = new RefreshToken
         {
@@ -89,7 +115,10 @@ public class UserService
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == tokenString);
 
-        if (token == null || !token.IsValid) { return (null, null); }
+        if (token == null || !token.IsValid)
+        {
+            return (null, null);
+        }
 
         token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -102,7 +131,12 @@ public class UserService
     {
         var token = await _db.RefreshTokens
             .FirstOrDefaultAsync(rt => rt.Token == tokenString);
-        if (token == null || token.IsRevoked) { return false; }
+
+        if (token == null || token.IsRevoked)
+        {
+            return false;
+        }
+
         token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return true;

@@ -228,6 +228,7 @@ public class AuthController : ControllerBase
         city = u.City,
         state = u.State,
         zip = u.Zip,
+        onboardingComplete = u.OnboardingComplete,   
     };
 }
 
