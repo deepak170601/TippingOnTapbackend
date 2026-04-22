@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+30106614d564b5f71e728d4728acc8168fd4850a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+388b69ac8b4d978baf64e866fe12940e04cfc33c")]
 [assembly: System.Reflection.AssemblyProductAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StripeTerminalBackend")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
