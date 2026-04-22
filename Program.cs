@@ -9,8 +9,18 @@ using StripeTerminalBackend.Services;
 using System.Text;
 using EventService = StripeTerminalBackend.Services.EventService;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Directory.GetCurrentDirectory()
+});
 
+// Disable file watching (IMPORTANT for containers)
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables();
+    
 var stripeKey = builder.Configuration["Stripe:SecretKey"]
     ?? throw new InvalidOperationException("Stripe:SecretKey is missing.");
 StripeConfiguration.ApiKey = stripeKey;
