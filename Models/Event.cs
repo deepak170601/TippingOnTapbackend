@@ -35,19 +35,18 @@ public class Event
     [Column("description")]
     public string? Description { get; set; }
 
-    // Stored as text[] in Postgres — e.g. [100, 200] (cents)
+    // Stored as integer[] in Postgres
     [Column("tip_options", TypeName = "integer[]")]
-    public int[] TipOptions { get; set; } = [];
+    public int[] TipOptions { get; set; } = new int[0];   // ✅ FIXED
 
     [Column("status")]
     public EventStatus Status { get; set; } = EventStatus.Upcoming;
 
-    // Denormalised — updated atomically when a tip is recorded
     [Column("tips_collected")]
     public int TipsCollected { get; set; } = 0;
 
     [Column("total_amount")]
-    public long TotalAmount { get; set; } = 0; // cents
+    public long TotalAmount { get; set; } = 0;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -60,5 +59,5 @@ public class Event
 
     // Navigation
     public User User { get; set; } = null!;
-    public ICollection<Tip> Tips { get; set; } = [];
+    public ICollection<Tip> Tips { get; set; } = new List<Tip>();   // ✅ FIXED
 }
