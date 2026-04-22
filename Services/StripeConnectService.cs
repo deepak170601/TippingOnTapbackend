@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Stripe;
 using StripeTerminalBackend.Data;
 

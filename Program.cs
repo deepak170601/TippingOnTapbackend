@@ -7,20 +7,26 @@ using StripeTerminalBackend.Data;
 using StripeTerminalBackend.Middleware;
 using StripeTerminalBackend.Services;
 using System.Text;
-using System.Threading.RateLimiting;
+using EventService = StripeTerminalBackend.Services.EventService;
 
 var builder = WebApplication.CreateBuilder(args);
 
-StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
+var stripeKey = builder.Configuration["Stripe:SecretKey"]
+    ?? throw new InvalidOperationException("Stripe:SecretKey is missing.");
+StripeConfiguration.ApiKey = stripeKey;
+
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is missing.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<StripeTerminalBackend.Services.EventService>();
+builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<TipService>();
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key is missing.");
+builder.Services.AddScoped<OtpService>();
+builder.Services.AddScoped<StripeConnectService>();
+builder.Services.AddScoped<IOtpSender, MockOtpSender>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -33,8 +39,7 @@ builder.Services
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                                           Encoding.UTF8.GetBytes(jwtKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
@@ -45,14 +50,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowMobileApp", policy =>
     {
-        policy
-            .WithOrigins(
-                builder.Configuration
-                    .GetSection("Cors:AllowedOrigins")
-                    .Get<string[]>() ?? Array.Empty<string>()
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        var allowedOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>() ?? Array.Empty<string>();
+
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins);
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
+
+        policy.AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -78,15 +90,11 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<OtpService>();
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<StripeConnectService>();
-// TODO: SendGrid removed — restore in Goal 11
+
+// SendGrid removed for now
 // builder.Services.AddSingleton(new SendGridClient(
 //     builder.Configuration["SendGrid:ApiKey"]));
 
-// OTP — using mock sender until client provides real OTP provider (see Goal 11)
-builder.Services.AddScoped<IOtpSender, MockOtpSender>();
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -97,12 +105,14 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
-app.UseMiddleware<ErrorHandlingMiddleware>();
-
-// ── Request/Response logging ───────────────────────────────
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($"→ {context.Request.Method} {context.Request.Path} | Auth: {context.Request.Headers["Authorization"].FirstOrDefault()?.Substring(0, Math.Min(30, context.Request.Headers["Authorization"].FirstOrDefault()?.Length ?? 0))}...");
+    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+    var preview = string.IsNullOrEmpty(authHeader)
+        ? ""
+        : authHeader.Substring(0, Math.Min(30, authHeader.Length));
+
+    Console.WriteLine($"→ {context.Request.Method} {context.Request.Path} | Auth: {preview}...");
 
     if (context.Request.ContentLength > 0)
     {
@@ -116,6 +126,7 @@ app.Use(async (context, next) =>
 
     Console.WriteLine($"← {context.Response.StatusCode} {context.Request.Path}");
 });
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
